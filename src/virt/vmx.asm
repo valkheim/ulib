@@ -3,8 +3,8 @@ bits 64
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-global asm_has_vmx
-asm_has_vmx:
+global asm_has_vmx_bit
+asm_has_vmx_bit:
     mov eax, 1
     cpuid
 
