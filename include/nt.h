@@ -109,7 +109,26 @@ typedef struct _SYSTEM_MODULE_INFORMATION {
   SYSTEM_MODULE Modules[ANYSIZE_ARRAY];
 } SYSTEM_MODULE_INFORMATION, *PSYSTEM_MODULE_INFORMATION;
 
-typedef enum _SYSTEM_INFORMATION_CLASS { SystemProcessAndThreadInformation = 0x05, SystemModuleInformation = 0x0b } SYSTEM_INFORMATION_CLASS;
+typedef struct _SYSTEM_HANDLE_TABLE_ENTRY_INFO {
+  USHORT UniqueProcessId;
+  USHORT CreatorBackTraceIndex;
+  UCHAR ObjectTypeIndex;
+  UCHAR HandleAttributes;
+  USHORT HandleValue;
+  PVOID Object;
+  ULONG GrantedAccess;
+} SYSTEM_HANDLE_TABLE_ENTRY_INFO, *PSYSTEM_HANDLE_TABLE_ENTRY_INFO;
+
+typedef struct _SYSTEM_HANDLE_INFORMATION {
+  ULONG NumberOfHandles;
+  SYSTEM_HANDLE_TABLE_ENTRY_INFO Handles[ANYSIZE_ARRAY];
+} SYSTEM_HANDLE_INFORMATION, *PSYSTEM_HANDLE_INFORMATION;
+
+typedef enum _SYSTEM_INFORMATION_CLASS {
+  SystemProcessInformation = 0x05,
+  SystemModuleInformation = 0x0b,
+  SystemHandleInformation = 0x10
+} SYSTEM_INFORMATION_CLASS;
 
 typedef struct _UNICODE_STR {
   USHORT Length;

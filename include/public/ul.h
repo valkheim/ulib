@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../addresses.h"
+#include "../handles.h"
 #include "../hooks.h"
 #include "../log.h"
 #include "../modules.h"

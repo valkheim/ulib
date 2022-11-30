@@ -1,7 +1,7 @@
 #pragma once
 
-#include "nt.h"
 #include "addresses.h"
+#include "nt.h"
 
 namespace ul
 {
@@ -10,12 +10,16 @@ namespace ul
   struct SystemInformationClass : std::false_type {
   };
   template <>
-  struct SystemInformationClass<SYSTEM_PROCESS_INFORMATION> {
-    static constexpr auto value = SystemModuleInformation;
+  struct SystemInformationClass<PSYSTEM_PROCESS_INFORMATION> {
+    static constexpr auto value = SystemProcessInformation;
   };
   template <>
   struct SystemInformationClass<PSYSTEM_MODULE_INFORMATION> {
     static constexpr auto value = SystemModuleInformation;
+  };
+  template <>
+  struct SystemInformationClass<PSYSTEM_HANDLE_INFORMATION> {
+    static constexpr auto value = SystemHandleInformation;
   };
 
   template <typename SystemInformation>

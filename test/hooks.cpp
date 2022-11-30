@@ -35,7 +35,7 @@ struct Hook : ::testing::Test {
 
   void test()
   {
-    ASSERT_TRUE(hook_location != nullptr);
+    ASSERT_TRUE(hook_location != nullptr) << "Requires the RED module";
     ASSERT_TRUE(my_hook != nullptr);
     ASSERT_FALSE(my_hook->hooked());
     ASSERT_EQ((*hook_location)(42), 42);
