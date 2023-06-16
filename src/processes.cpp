@@ -38,9 +38,14 @@ namespace ul
       if (path) name = ::ul::base_name(*path);
       return ::ul::Process{pid, path, name, custom};
     }
+
+    auto get_process_from_handle(HANDLE handle, void* custom) -> ::ul::Process
+    {
+      return get_process_from_pid(GetProcessId(handle), custom);
+    }
   }  // namespace
 
-  void walk_processes_ids_using_enumprocess(on_process callback)
+  void walk_processes_using_enumprocess(on_process callback)
   {
     auto count = std::size_t{0};
     auto maxCount = std::size_t{256};
@@ -66,7 +71,7 @@ namespace ul
     }
   }
 
-  void walk_processes_ids_using_toolhelp(on_process callback)
+  void walk_processes_using_toolhelp(on_process callback)
   {
     auto snapshot = ::CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS | TH32CS_SNAPTHREAD, 0);
     if (snapshot == INVALID_HANDLE_VALUE) {
@@ -87,7 +92,7 @@ namespace ul
     ::CloseHandle(snapshot);
   }
 
-  void walk_processes_ids_using_wts(on_process callback)
+  void walk_processes_using_wts(on_process callback)
   {
     PWTS_PROCESS_INFO info;
     DWORD count;
@@ -105,10 +110,27 @@ namespace ul
     ::WTSFreeMemory(info);
   }
 
-  auto get_processes_ids_using_enumprocess() -> ::ul::Processes
+  void walk_processes_using_ntgetnextprocess(on_process callback)
+  {
+    typedef NTSTATUS (NTAPI * MyNtGetNextProcess)(
+      _In_ HANDLE ProcessHandle,
+      _In_ ACCESS_MASK DesiredAccess,
+      _In_ ULONG HandleAttributes,
+      _In_ ULONG Flags,
+      _Out_ PHANDLE NewProcessHandle
+    );
+    auto NtGetNextProcess = reinterpret_cast<MyNtGetNextProcess>(GetProcAddress(GetModuleHandle("ntdll.dll"), "NtGetNextProcess"));
+    HANDLE hProcess = nullptr;
+    while (!NtGetNextProcess(hProcess, MAXIMUM_ALLOWED, 0, 0, &hProcess)) {
+      if (callback(::ul::get_process_from_handle(hProcess, nullptr)) == ::ul::walk_t::WALK_STOP) break;
+    }
+
+  }
+
+  auto get_processes_using_enumprocess() -> ::ul::Processes
   {
     auto processes = ::ul::Processes{};
-    ::ul::walk_processes_ids_using_enumprocess([&](::ul::Process process) -> ::ul::walk_t {
+    ::ul::walk_processes_using_enumprocess([&](::ul::Process process) -> ::ul::walk_t {
       processes.emplace_back(process);
       return ::ul::walk_t::WALK_CONTINUE;
     });
@@ -116,10 +138,10 @@ namespace ul
     return processes;
   }
 
-  auto get_processes_ids_using_toolhelp() -> ::ul::Processes
+  auto get_processes_using_toolhelp() -> ::ul::Processes
   {
     auto processes = ::ul::Processes{};
-    ::ul::walk_processes_ids_using_toolhelp([&](::ul::Process process) -> ::ul::walk_t {
+    ::ul::walk_processes_using_toolhelp([&](::ul::Process process) -> ::ul::walk_t {
       processes.emplace_back(process);
       return ::ul::walk_t::WALK_CONTINUE;
     });
@@ -127,10 +149,21 @@ namespace ul
     return processes;
   }
 
-  auto get_processes_ids_using_wts() -> ::ul::Processes
+  auto get_processes_using_wts() -> ::ul::Processes
   {
     auto processes = ::ul::Processes{};
-    ::ul::walk_processes_ids_using_wts([&](::ul::Process process) -> ::ul::walk_t {
+    ::ul::walk_processes_using_wts([&](::ul::Process process) -> ::ul::walk_t {
+      processes.emplace_back(process);
+      return ::ul::walk_t::WALK_CONTINUE;
+    });
+
+    return processes;
+  }
+
+  auto get_processes_using_ntgetnextprocess() -> ::ul::Processes
+  {
+    auto processes = ::ul::Processes{};
+    ::ul::walk_processes_using_ntgetnextprocess([&](::ul::Process process) -> ::ul::walk_t {
       processes.emplace_back(process);
       return ::ul::walk_t::WALK_CONTINUE;
     });
@@ -141,7 +174,7 @@ namespace ul
   auto with_process_using_enumprocess(std::string_view&& requested_name, on_process callback) -> bool
   {
     auto found = false;
-    ::ul::walk_processes_ids_using_enumprocess([&](::ul::Process process) -> ::ul::walk_t {
+    ::ul::walk_processes_using_enumprocess([&](::ul::Process process) -> ::ul::walk_t {
       if (!process.name) {
         return ::ul::walk_t::WALK_CONTINUE;
       }
@@ -160,7 +193,7 @@ namespace ul
   auto with_process_using_toolhelp(::ul::Pid const requested_pid, on_process callback) -> bool
   {
     auto found = false;
-    ::ul::walk_processes_ids_using_toolhelp([&](::ul::Process process) -> ::ul::walk_t {
+    ::ul::walk_processes_using_toolhelp([&](::ul::Process process) -> ::ul::walk_t {
       if (process.pid != requested_pid) {
         return ::ul::walk_t::WALK_CONTINUE;
       }
@@ -175,7 +208,7 @@ namespace ul
   auto with_process_using_toolhelp(std::string_view&& requested_name, on_process callback) -> bool
   {
     auto found = false;
-    ::ul::walk_processes_ids_using_toolhelp([&](::ul::Process process) -> ::ul::walk_t {
+    ::ul::walk_processes_using_toolhelp([&](::ul::Process process) -> ::ul::walk_t {
       if (!process.name) {
         return ::ul::walk_t::WALK_CONTINUE;
       }
@@ -194,7 +227,26 @@ namespace ul
   auto with_process_using_wts(std::string_view&& requested_name, on_process callback) -> bool
   {
     auto found = false;
-    ::ul::walk_processes_ids_using_wts([&](::ul::Process process) -> ::ul::walk_t {
+    ::ul::walk_processes_using_wts([&](::ul::Process process) -> ::ul::walk_t {
+      if (!process.name) {
+        return ::ul::walk_t::WALK_CONTINUE;
+      }
+
+      if (*process.name != requested_name) {
+        return ::ul::walk_t::WALK_CONTINUE;
+      }
+
+      found = true;
+      return callback(process);
+    });
+
+    return found;
+  }
+
+  auto with_process_using_ntgetnexprocess(std::string_view&& requested_name, on_process callback) -> bool
+  {
+    auto found = false;
+    ::ul::walk_processes_using_wts([&](::ul::Process process) -> ::ul::walk_t {
       if (!process.name) {
         return ::ul::walk_t::WALK_CONTINUE;
       }
