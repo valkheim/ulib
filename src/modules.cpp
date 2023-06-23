@@ -7,47 +7,75 @@ namespace ul
 {
   namespace
   {
-    auto get_modules_infos() -> PSYSTEM_MODULE_INFORMATION { return ::ul::get_system_informations<PSYSTEM_MODULE_INFORMATION>(); }
+    // EnumerateLoadedModules
+    auto get_modules_infos_using_ntquerysysteminformation() -> PSYSTEM_MODULE_INFORMATION { return ::ul::get_system_informations<PSYSTEM_MODULE_INFORMATION>(); }
+
+    auto get_module_from_ntquerysysteminformation_data(PSYSTEM_MODULE ntqsi_module) -> ::ul::Module {
+      auto mod = ::ul::Module{};
+      mod.name = std::nullopt;
+      if (ntqsi_module->Name + ntqsi_module->NameOffset)
+        mod.name = std::string(ntqsi_module->Name + ntqsi_module->NameOffset);
+
+      mod.path = std::nullopt;
+      if (ntqsi_module->Name)
+        mod.path = std::string(ntqsi_module->Name);
+
+      mod.base = ntqsi_module->ImageBaseAddress;
+      mod.size = ntqsi_module->ImageSize;
+      return mod;
+    }
   }  // namespace
 
-  VOID walk_modules(std::function<::ul::walk_t(SYSTEM_MODULE *)> callback)
+  void walk_modules_using_ntquerysysteminformation(on_module callback)
   {
-    auto modules = ::ul::get_modules_infos();
+    auto modules = ::ul::get_modules_infos_using_ntquerysysteminformation();
     for (unsigned i = 0; i < modules->ModulesCount; ++i) {
-      if (callback(&modules->Modules[i]) == ::ul::walk_t::WALK_STOP) break;
+      auto module = ::ul::get_module_from_ntquerysysteminformation_data(&modules->Modules[i]);
+      if (callback(&module) == ::ul::walk_t::WALK_STOP) break;
     }
 
     VirtualFree(modules, 0, MEM_RELEASE);
   }
 
-  auto with_module(std::string_view &&requested_name, std::function<VOID(PSYSTEM_MODULE)> callback) -> BOOL
+  auto with_module(std::string_view &&requested_name, on_module callback) -> bool
   {
     auto found = false;
-    ::ul::walk_modules([&](PSYSTEM_MODULE module) -> ::ul::walk_t {
-      if (_stricmp(module->Name + module->NameOffset, requested_name.data()) == 0) {
-        callback(module);
-        found = true;
-        return ::ul::walk_t::WALK_STOP;
+    ::ul::walk_modules_using_ntquerysysteminformation([&](::ul::Module *module) -> ::ul::walk_t {
+      if (!module->name) {
+        return ::ul::walk_t::WALK_CONTINUE;
       }
 
-      return ::ul::walk_t::WALK_CONTINUE;
+      if (_stricmp(module->name->data(), requested_name.data()) != 0) {
+        return ::ul::walk_t::WALK_CONTINUE;
+      }
+
+      found = true;
+      return callback(module);
     });
 
     return found;
   }
 
-  VOID show_module(PSYSTEM_MODULE const module)
+  void show_module(::ul::Module const *module)
   {
-    printf("Image name %s\n", module->Name + module->NameOffset);
-    printf("Image path %s\n", module->Name);
-    printf("Image base 0x%p\n", module->ImageBaseAddress);
-    printf("Image size 0x%x\n", module->ImageSize);
+    if (module->name)
+      printf("Image name: %s\n", module->name->data());
+    else
+      puts("Image name: (none)");
+
+    if (module->path)
+      printf("Image path: %s\n", module->path->data());
+    else
+      puts("Image path: (none)");
+
+    printf("Image base: 0x%p\n", module->base);
+    printf("Image size: 0x%x\n", module->size);
   }
 
-  VOID show_modules()
+  void show_modules()
   {
     unsigned i = 0;
-    ::ul::walk_modules([&i](PSYSTEM_MODULE module) -> ::ul::walk_t {
+    ::ul::walk_modules_using_ntquerysysteminformation([&i](::ul::Module const *module) -> ::ul::walk_t {
       printf("[%d]\n", i++);
       show_module(module);
       return ::ul::walk_t::WALK_CONTINUE;

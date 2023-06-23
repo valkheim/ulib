@@ -7,9 +7,9 @@
 TEST(modules, test_modules_found)
 {
   auto i = 0;
-  ::ul::walk_modules([&i](PSYSTEM_MODULE const module) -> ::ul::walk_t {
+  ::ul::walk_modules_using_ntquerysysteminformation([&i](::ul::Module const *module) -> ::ul::walk_t {
     i++;
-    //::ul::show_module(module);
+    // ::ul::show_module(module);
     return ::ul::walk_t::WALK_CONTINUE;
   });
 
@@ -20,8 +20,8 @@ TEST(modules, test_modules_found)
 TEST(modules, test_first_module_is_ntoskrnl)
 {
   auto name = std::string{};
-  ::ul::walk_modules([&](PSYSTEM_MODULE const module) -> ::ul::walk_t {
-    name = std::string{module->Name + module->NameOffset};
+  ::ul::walk_modules_using_ntquerysysteminformation([&](::ul::Module const *module) -> ::ul::walk_t {
+    name = module->name;
     return ::ul::walk_t::WALK_STOP;
   });
 

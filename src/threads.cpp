@@ -56,4 +56,6 @@ namespace ul
     });
   }
 
+  // auto walk_threads_using_ntgetnextthread()
+
 }  // namespace ul
