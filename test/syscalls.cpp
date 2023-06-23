@@ -23,11 +23,15 @@ TEST(syscalls, test_list)
 
   // for(auto&s:syscalls) printf("%s %d\n",s.name.c_str(),s.number);
 
-  auto build_number = ::ul::get_windows_build_version()->c;
+  auto build_version = ::ul::get_windows_build_version();
+  ASSERT_TRUE(build_version.has_value());
+  auto build_number = build_version->c;
+  auto filename = std::to_string(build_version->a) + "." + std::to_string(build_version->b) + "." + std::to_string(build_version->c) + "." + std::to_string(build_version->d);
+  // printf("filename is %s\n", filename.c_str());
 #ifdef _WIN64
-  auto lines = ::ul::test::get_lines(R"(.\ulib\test\golden\syscalls\x64\)" + std::to_string(build_number) + R"(.txt)");
+  auto lines = ::ul::test::get_lines(R"(.\ulib\test\golden\syscalls\x64\)" + filename + R"(.txt)");
 #else
-  auto lines = ::ul::test::get_lines(R"(.\ulib\test\golden\syscalls\x86\)" + std::to_string(build_number) + R"(.txt)");
+  auto lines = ::ul::test::get_lines(R"(.\ulib\test\golden\syscalls\x86\)" + filename + R"(.txt)");
 #endif
   ASSERT_EQ(lines.size(), syscalls.size());
   for (unsigned i = 0; i < lines.size(); ++i) {
