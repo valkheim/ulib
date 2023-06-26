@@ -3,6 +3,8 @@
 #include <tlhelp32.h>  // CreateToolhelp32Snapshot, …
 #pragma comment(lib, "wtsapi32.lib")
 
+#include <processsnapshot.h>
+
 #include "log.h"
 #include "nt.h"
 #include "processes.h"
@@ -65,7 +67,7 @@ namespace ul
     if (!NtGetNextThread)
       return false;
 
-    auto hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, requested_pid);
+    auto hProcess = OpenProcess(MAXIMUM_ALLOWED, FALSE, requested_pid);
     if (hProcess == INVALID_HANDLE_VALUE)
       return false;
 
@@ -92,4 +94,43 @@ namespace ul
     CloseHandle(hProcess);
     return true;
   }
+
+  auto walk_threads_using_processsnapshot(::ul::Pid const requested_pid, on_thread callback) -> bool
+  {
+    auto hProcess = OpenProcess(MAXIMUM_ALLOWED, FALSE, requested_pid);
+    if (hProcess == INVALID_HANDLE_VALUE)
+      return false;
+
+    HPSS hSnapshot;
+    auto error = PssCaptureSnapshot(hProcess, PSS_CAPTURE_NONE | PSS_CAPTURE_THREADS, 0, &hSnapshot);
+    auto process = ::ul::get_process_from_handle(hProcess, nullptr);
+    CloseHandle(hProcess);
+    if (error != ERROR_SUCCESS)
+      return false;
+
+    PSS_THREAD_INFORMATION info;
+    if(PssQuerySnapshot(hSnapshot, PSS_QUERY_THREAD_INFORMATION, &info, sizeof(info)) != ERROR_SUCCESS)
+      return false;
+
+    HPSSWALK hWalk;
+    if(PssWalkMarkerCreate(nullptr, &hWalk) != ERROR_SUCCESS)
+      return false;
+
+    PSS_THREAD_ENTRY pss_thread;
+    for (;;) {
+      if (::PssWalkSnapshot(hSnapshot, PSS_WALK_THREADS, hWalk, &pss_thread, sizeof(pss_thread)) != ERROR_SUCCESS)
+        break;
+
+      ::ul::Thread thread;
+      thread.process = process;
+      thread.tid = pss_thread.ThreadId;
+      if (callback(thread) == ::ul::walk_t::WALK_STOP)
+        break;
+
+    }
+
+    PssWalkMarkerFree(hWalk);
+    return true;
+  }
+
 }  // namespace ul

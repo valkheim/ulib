@@ -31,8 +31,26 @@ TEST(threads, test_walk_threads_using_ntgetnextthread)
 {
   auto threads = ::ul::Threads{};
   ASSERT_TRUE(::ul::walk_threads_using_toolhelp("ulib_test.exe", [&](::ul::Thread const &thread) -> ::ul::walk_t {
-    threads.emplace_back(thread);
     // ::ul::show_thread(&thread);
+    threads.emplace_back(thread);
+    return ::ul::walk_t::WALK_CONTINUE;
+  }));
+
+  ASSERT_TRUE(threads.size() >= 1);
+  for (unsigned i = 0; i < threads.size(); ++i)
+    ASSERT_EQ(threads[i].process.name, "ulib_test.exe");
+}
+
+TEST(threads, test_walk_threads_using_processsnapshot)
+{
+  auto threads = ::ul::Threads{};
+  ASSERT_TRUE(::ul::with_process_using_enumprocess("ulib_test.exe", [&](::ul::Process const &process) -> ::ul::walk_t {  // retrieve PID
+    ::ul::walk_threads_using_processsnapshot(process.pid, [&](::ul::Thread const &thread) -> ::ul::walk_t {
+      // ::ul::show_thread(&thread);
+      threads.emplace_back(thread);
+      return ::ul::walk_t::WALK_CONTINUE;
+    });
+
     return ::ul::walk_t::WALK_CONTINUE;
   }));
 
