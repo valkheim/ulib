@@ -243,7 +243,7 @@ namespace ul
     return found;
   }
 
-  auto with_process_using_ntgetnexprocess(std::string_view&& requested_name, on_process callback) -> bool
+  auto with_process_using_ntgetnextprocess(std::string_view&& requested_name, on_process callback) -> bool
   {
     auto found = false;
     ::ul::walk_processes_using_wts([&](::ul::Process process) -> ::ul::walk_t {

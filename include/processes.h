@@ -30,5 +30,5 @@ namespace ul
   [[nodiscard]] auto with_process_using_toolhelp(::ul::Pid const requested_pid, on_process callback) -> bool;
   [[nodiscard]] auto with_process_using_toolhelp(std::string_view&& requested_name, on_process callback) -> bool;
   [[nodiscard]] auto with_process_using_wts(std::string_view&& requested_name, on_process callback) -> bool;
-  [[nodiscard]] auto with_process_using_ntgetnexprocess(std::string_view&& requested_name, on_process callback) -> bool;
+  [[nodiscard]] auto with_process_using_ntgetnextprocess(std::string_view&& requested_name, on_process callback) -> bool;
 }  // namespace ul
