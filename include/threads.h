@@ -20,6 +20,7 @@ namespace ul
   using Threads = std::vector<::ul::Thread>;
   using on_thread = std::function<::ul::walk_t(::ul::Thread const& thread)>;
 
+  void show_thread(::ul::Thread const *thread);
   auto walk_threads_using_toolhelp(std::string_view&& requested_process_name, on_thread callback) -> bool;
   auto walk_threads_using_toolhelp(::ul::Pid const requested_pid, on_thread callback) -> bool;
 }  // namespace ul

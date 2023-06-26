@@ -22,6 +22,8 @@ namespace ul
   using Processes = std::vector<Process>;
   using on_process = std::function<::ul::walk_t(::ul::Process)>;
 
+  void show_process(::ul::Process const *process);
+  auto get_process_from_handle(HANDLE handle, void* custom) -> ::ul::Process;
   auto get_processes_using_enumprocess() -> ::ul::Processes;
   auto get_processes_using_toolhelp() -> ::ul::Processes;
   auto get_processes_using_wts() -> ::ul::Processes;

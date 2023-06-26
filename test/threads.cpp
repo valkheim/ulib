@@ -26,3 +26,17 @@ TEST(threads, test_walk_threads_using_toolhelp)
   ASSERT_EQ(using_process_name.size(), using_process_id.size());
   for (unsigned i = 0; i < using_process_id.size(); ++i) ASSERT_EQ(using_process_name[i].tid, using_process_id[i].tid);
 }
+
+TEST(threads, test_walk_threads_using_ntgetnextthread)
+{
+  auto threads = ::ul::Threads{};
+  ASSERT_TRUE(::ul::walk_threads_using_toolhelp("ulib_test.exe", [&](::ul::Thread const &thread) -> ::ul::walk_t {
+    threads.emplace_back(thread);
+    // ::ul::show_thread(&thread);
+    return ::ul::walk_t::WALK_CONTINUE;
+  }));
+
+  ASSERT_TRUE(threads.size() >= 1);
+  for (unsigned i = 0; i < threads.size(); ++i)
+    ASSERT_EQ(threads[i].process.name, "ulib_test.exe");
+}

@@ -39,11 +39,26 @@ namespace ul
       return ::ul::Process{pid, path, name, custom};
     }
 
-    auto get_process_from_handle(HANDLE handle, void* custom) -> ::ul::Process
-    {
-      return get_process_from_pid(GetProcessId(handle), custom);
-    }
   }  // namespace
+
+  void show_process(::ul::Process const *process)
+  {
+    printf("Process.pid: %d\n", process->pid);
+    if (process->path)
+      printf("Process.path: %s\n", process->path->data());
+    else
+      puts("Process.path: (none)");
+
+    if (process->name)
+      printf("Process.name: %s\n", process->name->data());
+    else
+      puts("Process.name: (none)");
+  }
+
+  auto get_process_from_handle(HANDLE handle, void* custom) -> ::ul::Process
+  {
+    return get_process_from_pid(GetProcessId(handle), custom);
+  }
 
   void walk_processes_using_enumprocess(on_process callback)
   {
@@ -112,14 +127,14 @@ namespace ul
 
   void walk_processes_using_ntgetnextprocess(on_process callback)
   {
-    typedef NTSTATUS (NTAPI * MyNtGetNextProcess)(
+    typedef NTSTATUS (NTAPI * _NtGetNextProcess)(
       _In_ HANDLE ProcessHandle,
       _In_ ACCESS_MASK DesiredAccess,
       _In_ ULONG HandleAttributes,
       _In_ ULONG Flags,
       _Out_ PHANDLE NewProcessHandle
     );
-    auto NtGetNextProcess = reinterpret_cast<MyNtGetNextProcess>(GetProcAddress(GetModuleHandle("ntdll.dll"), "NtGetNextProcess"));
+    auto NtGetNextProcess = reinterpret_cast<_NtGetNextProcess>(GetProcAddress(GetModuleHandle("ntdll.dll"), "NtGetNextProcess"));
     HANDLE hProcess = nullptr;
     while (!NtGetNextProcess(hProcess, MAXIMUM_ALLOWED, 0, 0, &hProcess)) {
       if (callback(::ul::get_process_from_handle(hProcess, nullptr)) == ::ul::walk_t::WALK_STOP) break;

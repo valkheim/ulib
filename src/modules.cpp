@@ -59,17 +59,17 @@ namespace ul
   void show_module(::ul::Module const *module)
   {
     if (module->name)
-      printf("Image name: %s\n", module->name->data());
+      printf("Module.name: %s\n", module->name->data());
     else
-      puts("Image name: (none)");
+      puts("Module.name: (none)");
 
     if (module->path)
-      printf("Image path: %s\n", module->path->data());
+      printf("Module.path: %s\n", module->path->data());
     else
-      puts("Image path: (none)");
+      puts("Module.path: (none)");
 
-    printf("Image base: 0x%p\n", module->base);
-    printf("Image size: 0x%x\n", module->size);
+    printf("Module.base: 0x%p\n", module->base);
+    printf("Module.size: 0x%x\n", module->size);
   }
 
   void show_modules()

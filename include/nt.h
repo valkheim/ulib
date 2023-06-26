@@ -2,6 +2,8 @@
 
 #include <Windows.h>
 
+#define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
+
 #define STATUS_INFO_LENGTH_MISMATCH 0xc0000004
 
 typedef LONG KPRIORITY;
