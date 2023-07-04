@@ -19,6 +19,8 @@ namespace ul
   using on_module = std::function<::ul::walk_t(::ul::Module *)>;
 
   void walk_modules_using_ntquerysysteminformation(on_module callback);
+  void walk_modules_using_enumerateloadedmodules(on_module callback);
+  // void walk_modules_using LdrEnumerateLoadedModules
   [[nodiscard]] auto with_module_using_ntquerysysteminformation(std::string_view &&requested_name, on_module callback) -> bool;
   void show_module(::ul::Module const *module);
   void show_modules();

@@ -1,5 +1,8 @@
 #include "modules.h"
 
+#pragma comment (lib, "dbghelp.lib") // EnumerateLoadedModules
+#include <dbghelp.h>
+
 #include "ntquerysysteminformation.hpp"
 #include "utils.h"
 
@@ -7,7 +10,6 @@ namespace ul
 {
   namespace
   {
-    // EnumerateLoadedModules
     auto get_modules_infos_using_ntquerysysteminformation() -> PSYSTEM_MODULE_INFORMATION { return ::ul::get_system_informations<PSYSTEM_MODULE_INFORMATION>(); }
 
     auto get_module_from_ntquerysysteminformation_data(PSYSTEM_MODULE ntqsi_module) -> ::ul::Module {
@@ -24,6 +26,26 @@ namespace ul
       mod.size = ntqsi_module->ImageSize;
       return mod;
     }
+
+    auto get_module_from_enumerateloadedmodules_data(PSTR ModuleName, ULONG ModuleBase, ULONG ModuleSize) -> ::ul::Module
+    {
+      auto mod = ::ul::Module{};
+      mod.name = std::nullopt;
+      mod.path = std::nullopt;
+      if (ModuleName)
+        mod.path = std::string(ModuleName); // todo: split to get name
+
+      mod.base = reinterpret_cast<void*>(ModuleBase);
+      mod.size = ModuleSize;
+      return mod;
+    }
+
+    BOOL CALLBACK enumerate_modules_callback(PSTR ModuleName, ULONG ModuleBase, ULONG ModuleSize, PVOID UserContext)
+    {
+        auto *callback = (::ul::on_module *)(UserContext);
+        auto module = get_module_from_enumerateloadedmodules_data(ModuleName, ModuleBase, ModuleSize);
+        return ((*callback)(&module) != ::ul::walk_t::WALK_STOP);
+    }
   }  // namespace
 
   void walk_modules_using_ntquerysysteminformation(on_module callback)
@@ -35,6 +57,16 @@ namespace ul
     }
 
     VirtualFree(modules, 0, MEM_RELEASE);
+  }
+
+  void walk_modules_using_enumerateloadedmodules(on_module callback)
+  {
+    // EnumerateLoadedModules
+    // EnumerateLoadedModules64
+    // EnumerateLoadedModulesEx
+    // EnumerateLoadedModulesExW
+    // EnumerateLoadedModulesW64
+    EnumerateLoadedModules(GetCurrentProcess(), reinterpret_cast<PENUMLOADED_MODULES_CALLBACK>(enumerate_modules_callback), &callback);
   }
 
   auto with_module(std::string_view &&requested_name, on_module callback) -> bool
