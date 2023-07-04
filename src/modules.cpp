@@ -3,6 +3,9 @@
 #pragma comment (lib, "dbghelp.lib") // EnumerateLoadedModules
 #include <dbghelp.h>
 
+#include <locale>
+#include <codecvt>
+
 #include "ntquerysysteminformation.hpp"
 #include "utils.h"
 
@@ -33,18 +36,49 @@ namespace ul
       mod.name = std::nullopt;
       mod.path = std::nullopt;
       if (ModuleName)
-        mod.path = std::string(ModuleName); // todo: split to get name
+      {
+        mod.path = std::string(ModuleName);
+        mod.name = ::ul::base_name(*(mod.path));
+      }
 
       mod.base = reinterpret_cast<void*>(ModuleBase);
       mod.size = ModuleSize;
       return mod;
     }
 
-    BOOL CALLBACK enumerate_modules_callback(PSTR ModuleName, ULONG ModuleBase, ULONG ModuleSize, PVOID UserContext)
+    BOOL CALLBACK enumerate_modules_callback(_In_ PSTR ModuleName, _In_ ULONG ModuleBase, _In_ ULONG ModuleSize,  _In_opt_ PVOID UserContext)
     {
         auto *callback = (::ul::on_module *)(UserContext);
         auto module = get_module_from_enumerateloadedmodules_data(ModuleName, ModuleBase, ModuleSize);
         return ((*callback)(&module) != ::ul::walk_t::WALK_STOP);
+    }
+
+    auto get_module_from_ldr_data_table_entry(LDR_DATA_TABLE_ENTRY *data_table_entry) -> ::ul::Module
+    {
+      auto mod = ::ul::Module{};
+      mod.name = std::nullopt;
+      mod.path = std::nullopt;
+      if (!data_table_entry)
+        return mod;
+
+      if (data_table_entry->FullDllName.Buffer)
+      {
+        auto wstring = std::wstring(data_table_entry->FullDllName.Buffer, data_table_entry->FullDllName.Length / 2);
+        mod.path = ::ul::from_ansi_wstring_to_string(wstring);
+        mod.name = ::ul::base_name(*(mod.path));
+      }
+
+      mod.base = data_table_entry->DllBase;
+      mod.size = data_table_entry->SizeOfImage;
+      return mod;
+    }
+
+    VOID NTAPI ldr_enumerate_modules_callback(_In_ LDR_DATA_TABLE_ENTRY *DataTableEntry, _In_ PVOID Context, _Inout_ BOOLEAN *StopEnumeration)
+    {
+        auto *callback = (::ul::on_module *)(Context);
+        auto module = get_module_from_ldr_data_table_entry(DataTableEntry);
+        *StopEnumeration = ((*callback)(&module) == ::ul::walk_t::WALK_STOP);
+
     }
   }  // namespace
 
@@ -67,6 +101,22 @@ namespace ul
     // EnumerateLoadedModulesExW
     // EnumerateLoadedModulesW64
     EnumerateLoadedModules(GetCurrentProcess(), reinterpret_cast<PENUMLOADED_MODULES_CALLBACK>(enumerate_modules_callback), &callback);
+  }
+
+  void walk_modules_using_ldrenumerateloadedmodules(on_module callback)
+  {
+    typedef VOID(NTAPI *PLDR_LOADED_MODULE_ENUMERATION_CALLBACK_FUNCTION)(
+      _In_    LDR_DATA_TABLE_ENTRY *DataTableEntry,
+      _In_    PVOID Context,
+      _Inout_ BOOLEAN *StopEnumeration
+    );
+    typedef NTSTATUS (NTAPI * _LdrEnumerateLoadedModules)(
+      _In_opt_ ULONG Flags,
+      _In_ PLDR_LOADED_MODULE_ENUMERATION_CALLBACK_FUNCTION CallbackFunction,
+      _In_opt_ PVOID Context
+    );
+    auto LdrEnumerateLoadedModules = reinterpret_cast<_LdrEnumerateLoadedModules>(GetProcAddress(GetModuleHandle("ntdll.dll"), "LdrEnumerateLoadedModules"));
+    LdrEnumerateLoadedModules(false, reinterpret_cast<PLDR_LOADED_MODULE_ENUMERATION_CALLBACK_FUNCTION>(ldr_enumerate_modules_callback), &callback);
   }
 
   auto with_module(std::string_view &&requested_name, on_module callback) -> bool

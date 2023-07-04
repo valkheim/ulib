@@ -28,6 +28,18 @@ TEST(modules, test_modules_with_enumerateloadedmoduels)
   ASSERT_TRUE(i > 0);
 }
 
+TEST(modules, test_modules_using_ldrenumerateloaded_module)
+{
+  auto i = 0;
+  ::ul::walk_modules_using_ldrenumerateloadedmodules([&i](::ul::Module const *module) -> ::ul::walk_t {
+    i++;
+    // ::ul::show_module(module);
+    return ::ul::walk_t::WALK_CONTINUE;
+  });
+
+  ASSERT_TRUE(i > 0);
+}
+
 #if _WIN64
 TEST(modules, test_first_module_is_ntoskrnl)
 {
